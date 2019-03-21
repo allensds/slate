@@ -22,6 +22,39 @@ Welcome to iSTOX trader and developer documentation. These documents outline exc
 
 APIs are separated into two categories: trading and feed. Trading APIs require authentication and provide access to placing orders and other account information. Feed APIs provide market data and are public.
 
+# General
+
+Market overview and general information.
+
+# Matching Engine
+
+iSTOX operates a continuous first-come, first-serve order book. Orders are executed in price-time priority as received by the matching engine.
+
+# Data Centers
+
+iSTOX data centers are in the Amazon Asia Pacific Singapore (ap-southeast-1) region.
+
+# Sandbox
+
+A public sandbox is available for testing API connectivity and web trading. While the sandbox only hosts a subset of the production order books, all of the exchange functionality is available. Additionally, in this environment you are allowed to add unlimited fake funds for testing.
+
+Login sessions are separate from production.
+
+##Sandbox URLs
+When testing your API connectivity, make sure to use the following URLs.
+
+###Website
+**https://oauth.istox.com**
+
+###REST API
+**https://trading.istox.com/api.v2**
+
+###Websocket Feed
+**TODO**
+
+###FIX API
+**tcp+ssl://fix.istox.com:31337**
+
 <a name="REST"></a>
 
 # **REST API**
@@ -33,7 +66,73 @@ The REST API has endpoints for account and order management as well as public ma
 
 There is also a [FIX API](#FIX) for order management.
 
+# Requests
+
+All requests and responses are application/json content type and follow typical HTTP response status codes for success and failure.
+
+## Errors
+
+Unless otherwise stated, errors to bad requests will respond with HTTP 4xx or status codes. The body will also contain a message parameter indicating the cause. Your language’s http library should be configured to provide message bodies for non-2xx requests so that you can read the message field from the body.
+
+###Common error codes
+
+Status Code | Reason
+-------------- | -------------- 
+400	| Bad Request – Invalid request format
+401	| Unauthorized – Invalid API Key
+403	| Forbidden – You do not have access to the requested resource
+404	| Not Found
+500	| Internal Server Error – We had a problem with our server
+
+## Success
+
+A successful response is indicated by HTTP status code 200 and may contain an optional body. If the response has a body it will be documented under each resource below.
+
+<a name="aunthentication"></a>
 # Authentication
+
+```python
+{
+import istox
+
+client = istox.Client(endpoint="", application_id="")
+# pass in email and password for your account,
+# and a publicKey and privateKey pair generated from your side
+# istox will only receive your public key, the private key is
+# used by the client internal calls which will not be sent to istox
+jwt = client.get_api_jwt(email, password, publicKey, privateKey)
+}
+```
+
+```javascript
+{
+const client = require("istox/client")
+const base64url = require('base64url')
+
+var opts = {};
+
+//add your own account and keys
+var email = "";
+var password = "";
+var privateKeyBase64 = "";
+var publicKeyBase64 = "";
+var privateKey = base64url.decode(privateKeyBase64);
+var publicKey = base64url.decode(publicKeyBase64);
+
+var myclient = client(opts)
+
+myclient.get_api_jwt(email, password, publicKey, privateKey).then((jwt) => {
+    console.log(JSON.stringify(jwt, null, 2));
+})
+}
+```
+
+Clients are required to pass json web token (JWT) in the request header in order to call private APIs. To get JWT, clients need to do a few REST API calls to iSTOX's authentication server. iSTOX created a client library for Python and NodeJs to ease the steps.
+
+To install Python package, run **pip install istox**
+
+To install NodeJs npm package, run **npm install istox**
+
 
 # Orders
 
@@ -127,7 +226,7 @@ Cancel a previously placed order.
 If the order had no matches during its lifetime its record may be purged. This means the order details will not be available with GET /market/orders/<order-id>.
 
 ###HTTP REQUEST
-POST /market/orders/<order-id>/cancel
+**POST /market/orders/<order-id>/cancel**
 
 <aside class="notice">
 The order id is the server-assigned order id when a new order is placed.
@@ -139,16 +238,6 @@ If the order could not be canceled (already filled or previously canceled, etc),
 ## Cancel all
 
 With best effort, cancel all open orders. The response is a list of ids of the canceled orders.
-
-```json
-[
-    "144c6f8e-713f-4682-8435-5280fbe8b2b4",
-    "debe4907-95dc-442f-af3b-cec12f42ebda",
-    "cf7aceee-7b08-4227-a76c-3858144323ab",
-    "dfc5ae27-cadb-4c0c-beef-8994936fde8a",
-    "34fecfbf-de33-4273-b2c6-baf8e8948be4"
-]
-```
 
 ###HTTP REQUEST
 **POST /market/orders/cancel**
@@ -216,6 +305,18 @@ page | [optional] Specify the page of paginated results, default to 1
 timestamp | [optional] An integer represents the seconds elapsed since Unix epoch. If set, only trades executed before the time will be returned
 order_by | [optional, asc or desc] If set, returned orders will be sorted in specific order, default to "desc"
 
+# Deposites
+
+TODO?
+
+# Fees
+
+TODO?
+
+# Withdrawals
+
+TODO?
+
 # Markets
 
 <a name="markets"></a>
@@ -240,6 +341,7 @@ order_by | [optional, asc or desc] If set, returned orders will be sorted in spe
         "bid_precision": 4
     },
     ...
+  ]
 }
 ```
 
@@ -359,7 +461,7 @@ Get API server current time, in seconds since [Unix Epoch](https://en.wikipedia.
 
 The websocket feed provides real-time market data updates for orders and trades.
 
-**wss://ws-feed.istox.com**
+**TODO**
 
 # Overview
 
@@ -564,15 +666,7 @@ Tag	| Name	| Description
 <!-- 8013	| CancelOrdersOnDisconnect	| Y: Cancel all open orders for the current profile; S: Cancel open orders placed during session
 9406	| DropCopyFlag	| If set to Y, execution reports will be generated for all user orders (defaults to Y) -->
 
-The Logon message sent by the client must contain a json web token (JWT) for authentication.
-
-SendingTime, MsgType, MsgSeqNum, SenderCompID, TargetCompID, Password.
-
-There is no trailing separator. The RawData field should be a base64 encoding of the HMAC signature.
-
-<aside class="notice">
-A single API key must not be used in multiple connections at the same time. To establish multiple FIX connections, please generate a new API key for each one. A maximum of 10 connections can be established.
-</aside>
+The Logon message sent by the client must contain a json web token (JWT) for authentication, and the JWT is passed with the RawData field. To get the JWT, please see [Authentication](#aunthentication)
 
 ## Logout (5)
 
